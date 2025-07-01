@@ -1,8 +1,8 @@
 import Redis from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL;
-
 let redis;
+
 function getRedis() {
   if (!redis) {
     redis = new Redis(REDIS_URL);
@@ -11,13 +11,19 @@ function getRedis() {
 }
 
 function getSessionKey(token) {
-  return `session:${token}`;
+  return session:${token};
 }
 
 export default async function handler(req, res) {
+  if (!REDIS_URL) {
+    return res.status(500).json({
+      success: false,
+      message: "Missing REDIS_URL environment variable",
+    });
+  }
+
   if (req.method !== "GET" && req.method !== "POST") {
-    res.status(405).json({ success: false, message: "Method not allowed" });
-    return;
+    return res.status(405).json({ success: false, message: "Method not allowed" });
   }
 
   const cookieHeader = req.headers.cookie || req.headers.Cookie || "";
@@ -25,8 +31,7 @@ export default async function handler(req, res) {
   const sessionToken = match ? match[1] : null;
 
   if (!sessionToken) {
-    res.status(200).json({ success: false, message: "No session cookie found" });
-    return;
+    return res.status(200).json({ success: false, message: "No session cookie found" });
   }
 
   try {
@@ -34,8 +39,7 @@ export default async function handler(req, res) {
     const email = await redisClient.get(getSessionKey(sessionToken));
 
     if (!email) {
-      res.status(200).json({ success: false, message: "Invalid or expired session" });
-      return;
+      return res.status(200).json({ success: false, message: "Invalid or expired session" });
     }
 
     res.status(200).json({ success: true, email });

