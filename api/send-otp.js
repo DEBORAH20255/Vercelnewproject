@@ -5,11 +5,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const REDIS_URL = process.env.REDIS_URL;
 
-if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
-  throw new Error("Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL");
-}
-
-const redis = new Redis(REDIS_URL);
+let redis; // will lazily initialize
 
 function getOtpKey(email) {
   return `otp:${email}`;
@@ -20,6 +16,17 @@ function generateOtp() {
 }
 
 module.exports = async function handler(req, res) {
+  // ENV VAR CHECK INSIDE HANDLER!
+  if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
+    res.status(500).json({ success: false, message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL" });
+    return;
+  }
+
+  // Lazy-init Redis so it doesn't throw at cold start
+  if (!redis) {
+    redis = new Redis(REDIS_URL);
+  }
+
   if (req.method !== "POST") {
     res.status(405).json({ success: false, message: "Method not allowed" });
     return;

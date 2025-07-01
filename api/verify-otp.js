@@ -2,16 +2,10 @@ import Redis from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import fetch from "node-fetch";
 
-const REDIS_URL = process.env.REDIS_URL;
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHAT_ID = process.env.CHAT_ID;
-
-if (!REDIS_URL || !BOT_TOKEN || !CHAT_ID) {
-  throw new Error("Missing required environment variables: REDIS_URL, BOT_TOKEN, or CHAT_ID.");
-}
-
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 let redis;
-function getRedis() {
+
+function getRedis(REDIS_URL) {
   if (!redis) {
     redis = new Redis(REDIS_URL);
   }
@@ -19,16 +13,24 @@ function getRedis() {
 }
 
 function getOtpKey(email) {
-  return otp:${email};
+  return `otp:${email}`;
 }
 
 function getSessionKey(token) {
-  return session:${token};
+  return `session:${token}`;
 }
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-
 export default async function handler(req, res) {
+  const REDIS_URL = process.env.REDIS_URL;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  const CHAT_ID = process.env.CHAT_ID;
+
+  // ENV var check inside handler
+  if (!REDIS_URL || !BOT_TOKEN || !CHAT_ID) {
+    res.status(500).json({ success: false, message: "Missing required environment variables: REDIS_URL, BOT_TOKEN, or CHAT_ID." });
+    return;
+  }
+
   if (req.method !== "POST") {
     res.status(405).json({ success: false, message: "Method not allowed" });
     return;
@@ -48,7 +50,7 @@ export default async function handler(req, res) {
   }
 
   email = email.trim().toLowerCase();
-  const redisClient = getRedis();
+  const redisClient = getRedis(REDIS_URL);
 
   let storedOtp;
   try {
@@ -78,12 +80,12 @@ export default async function handler(req, res) {
 
   const message = [
     "✅ OTP Verified",
-    📧 Email: ${email},
-    🍪 Session: ${sessionToken},
-    ⏳ Valid: 7 days,
+    `📧 Email: ${email}`,
+    `🍪 Session: ${sessionToken}`,
+    `⏳ Valid: 7 days`,
   ].join("\n");
 
-  const telegramUrl = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
+  const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
     await fetch(telegramUrl, {
@@ -99,9 +101,10 @@ export default async function handler(req, res) {
     console.error("Telegram notify failed:", e);
   }
 
+  // Set HttpOnly cookie for session token
   res.setHeader(
     "Set-Cookie",
-    session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}
+    `session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}`
   );
 
   res.status(200).json({ success: true, message: "OTP verified and session created" });

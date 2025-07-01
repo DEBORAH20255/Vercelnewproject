@@ -11,7 +11,7 @@ function getRedis() {
 }
 
 function getSessionKey(token) {
-  return session:${token};
+  return `session:${token}`; // ← fixed: use backticks for template literal
 }
 
 export default async function handler(req, res) {
