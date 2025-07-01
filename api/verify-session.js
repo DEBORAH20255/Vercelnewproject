@@ -1,6 +1,7 @@
 const Redis = require("ioredis");
 
 const REDIS_URL = process.env.REDIS_URL;
+
 let redis;
 function getRedis() {
   if (!redis) {
@@ -10,23 +11,17 @@ function getRedis() {
 }
 
 function getSessionKey(token) {
-  return `session:${token}`;
+  return session:${token};
 }
 
 export default async function handler(req, res) {
-  // Only allow GET or POST for session verification
   if (req.method !== "GET" && req.method !== "POST") {
     res.status(405).json({ success: false, message: "Method not allowed" });
     return;
   }
 
-  // Support both lowercase and uppercase header keys
-  const cookie =
-    req.headers.cookie ||
-    req.headers.Cookie ||
-    "";
-
-  const match = cookie.match(/session=([^;]+)/);
+  const cookieHeader = req.headers.cookie || req.headers.Cookie || "";
+  const match = cookieHeader.match(/session=([^;]+)/);
   const sessionToken = match ? match[1] : null;
 
   if (!sessionToken) {
@@ -37,6 +32,7 @@ export default async function handler(req, res) {
   try {
     const redisClient = getRedis();
     const email = await redisClient.get(getSessionKey(sessionToken));
+
     if (!email) {
       res.status(200).json({ success: false, message: "Invalid or expired session" });
       return;
@@ -44,12 +40,10 @@ export default async function handler(req, res) {
 
     res.status(200).json({ success: true, email });
   } catch (err) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error verifying session",
-        error: process.env.NODE_ENV === "production" ? undefined : err.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Error verifying session",
+      error: process.env.NODE_ENV === "production" ? undefined : err.message,
+    });
   }
 }

