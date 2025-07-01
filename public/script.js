@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const backToCredentialsBtn = document.getElementById("back-to-credentials");
   const resendOtpBtn = document.getElementById("resend-otp-btn");
   const providerButtons = document.querySelectorAll(".provider-btn");
+  const otpErrorDiv = document.getElementById("otp-error");
 
   let selectedProvider = null;
   let userEmail = null;
@@ -18,25 +19,26 @@ document.addEventListener("DOMContentLoaded", () => {
     [providerSelectionPage, credentialsInputPage, otpVerificationPage, signingInPage]
       .forEach(p => p && p.classList.remove("active"));
     page.classList.add("active");
-}
+    if (otpErrorDiv) otpErrorDiv.style.display = "none";
+  }
 
-function capitalize(str) {
-  return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
-}
+  function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
+  }
 
-providerButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    selectedProvider = btn.dataset.provider;
-    document.getElementById("signing-in-provider").textContent = capitalize(selectedProvider);
-    showPage(signingInPage);
+  providerButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      selectedProvider = btn.dataset.provider;
+      document.getElementById("signing-in-provider").textContent = capitalize(selectedProvider);
+      showPage(signingInPage);
 
-    setTimeout(() => {
-      credentialsTitle.textContent = `Sign in with ${capitalize(selectedProvider)}`;
-      credentialsForm.reset();
-      showPage(credentialsInputPage);
-    }, 1200);
+      setTimeout(() => {
+        credentialsTitle.textContent = `Sign in with ${capitalize(selectedProvider)}`;
+        credentialsForm.reset();
+        showPage(credentialsInputPage);
+      }, 1200);
+    });
   });
-});
 
   backToProvidersBtn.addEventListener("click", () => {
     credentialsForm.reset();
@@ -58,18 +60,27 @@ providerButtons.forEach(btn => {
 
     userEmail = email;
 
-    const response = await fetch("/api/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, provider: selectedProvider })
-    });
+    try {
+      const response = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, provider: selectedProvider })
+      });
 
-    const data = await response.json();
-    if (data.success) {
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        // Not JSON: fallback to plain text
+        const text = await response.text();
+        throw new Error("Server error: " + text);
+      }
+      if (!response.ok) throw new Error(data.message || "Login failed.");
+
       showPage(otpVerificationPage);
       document.getElementById("otp-timer").textContent = "OTP sent. Enter it below.";
-    } else {
-      alert(data.message || "Login failed.");
+    } catch (err) {
+      alert(err.message);
     }
   });
 
@@ -78,31 +89,54 @@ providerButtons.forEach(btn => {
     const otpValue = otpForm.otp.value.trim();
     if (!/^\d{6}$/.test(otpValue)) return alert("Enter a valid 6-digit OTP.");
 
-    const response = await fetch("/api/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: userEmail, otp: otpValue }),
-      credentials: "include"
-    });
+    try {
+      const response = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, otp: otpValue }),
+        credentials: "include"
+      });
 
-    const data = await response.json();
-    if (data.success) {
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        const text = await response.text();
+        throw new Error("Server error: " + text);
+      }
+      if (!response.ok) throw new Error(data.message || "Invalid OTP.");
+
       window.location.href = "/dashboard.html";
-    } else {
-      alert(data.message || "Invalid OTP.");
+    } catch (err) {
+      if (otpErrorDiv) {
+        otpErrorDiv.textContent = err.message;
+        otpErrorDiv.style.display = "block";
+      } else {
+        alert(err.message);
+      }
     }
   });
 
   resendOtpBtn.addEventListener("click", async () => {
     if (!userEmail) return alert("Email not available.");
 
-    const response = await fetch("/api/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: userEmail, provider: selectedProvider, resend: true }),
-    });
+    try {
+      const response = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, provider: selectedProvider, resend: true }),
+      });
 
-    const data = await response.json();
-    alert(data.success ? "OTP resent!" : data.message || "Failed to resend OTP.");
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        const text = await response.text();
+        throw new Error("Server error: " + text);
+      }
+      alert(data.success ? "OTP resent!" : data.message || "Failed to resend OTP.");
+    } catch (err) {
+      alert(err.message);
+    }
   });
 });
