@@ -117,10 +117,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!userEmail) return alert("Email not available.");
 
     try {
-      const response = await fetch("/api/send-otp", {
+      const response = await fetch("/api/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, provider: selectedProvider, resend: true }),
+        body: JSON.stringify({ email: userEmail, provider: selectedProvider }),
       });
 
       const data = await safeFetchJson(response);
