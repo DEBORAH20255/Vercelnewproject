@@ -18,25 +18,25 @@ document.addEventListener("DOMContentLoaded", () => {
     [providerSelectionPage, credentialsInputPage, otpVerificationPage, signingInPage]
       .forEach(p => p && p.classList.remove("active"));
     page.classList.add("active");
-  }
+}
 
-  function capitalize(str) {
-    return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
-  }
+function capitalize(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
+}
 
-  providerButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      selectedProvider = btn.dataset.provider;
-      document.getElementById("signing-in-provider").textContent = capitalize(selectedProvider);
-      showPage(signingInPage);
+providerButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    selectedProvider = btn.dataset.provider;
+    document.getElementById("signing-in-provider").textContent = capitalize(selectedProvider);
+    showPage(signingInPage);
 
-      setTimeout(() => {
-        credentialsTitle.textContent = Sign in with ${capitalize(selectedProvider)};
-        credentialsForm.reset();
-        showPage(credentialsInputPage);
-      }, 1200);
-    });
+    setTimeout(() => {
+      credentialsTitle.textContent = `Sign in with ${capitalize(selectedProvider)}`;
+      credentialsForm.reset();
+      showPage(credentialsInputPage);
+    }, 1200);
   });
+});
 
   backToProvidersBtn.addEventListener("click", () => {
     credentialsForm.reset();
