@@ -1,4 +1,4 @@
-const Redis = require("ioredis");
+import Redis from "ioredis";
 
 const REDIS_URL = process.env.REDIS_URL;
 
@@ -11,7 +11,7 @@ function getRedis() {
 }
 
 function getSessionKey(token) {
-  return `session:${token}`; // ← fixed: use backticks for template literal
+  return `session:${token}`;
 }
 
 export default async function handler(req, res) {

