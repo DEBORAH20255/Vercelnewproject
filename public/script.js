@@ -26,6 +26,15 @@ document.addEventListener("DOMContentLoaded", () => {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
   }
 
+  async function safeFetchJson(response) {
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error("Server error: " + text);
+    }
+  }
+
   providerButtons.forEach(btn => {
     btn.addEventListener("click", () => {
       selectedProvider = btn.dataset.provider;
@@ -67,14 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ email, password, provider: selectedProvider })
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        // Not JSON: fallback to plain text
-        const text = await response.text();
-        throw new Error("Server error: " + text);
-      }
+      const data = await safeFetchJson(response);
       if (!response.ok) throw new Error(data.message || "Login failed.");
 
       showPage(otpVerificationPage);
@@ -97,13 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
         credentials: "include"
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        const text = await response.text();
-        throw new Error("Server error: " + text);
-      }
+      const data = await safeFetchJson(response);
       if (!response.ok) throw new Error(data.message || "Invalid OTP.");
 
       window.location.href = "/dashboard.html";
@@ -127,13 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ email: userEmail, provider: selectedProvider, resend: true }),
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        const text = await response.text();
-        throw new Error("Server error: " + text);
-      }
+      const data = await safeFetchJson(response);
       alert(data.success ? "OTP resent!" : data.message || "Failed to resend OTP.");
     } catch (err) {
       alert(err.message);
