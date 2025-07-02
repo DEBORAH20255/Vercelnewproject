@@ -11,43 +11,39 @@ function getRedis() {
 }
 
 function getSessionKey(token) {
-  return session:${token};
+  return `session:${token}`;
 }
 
 export default async function handler(req, res) {
   if (!REDIS_URL) {
-    return res.status(500).json({
-      success: false,
-      message: "Missing REDIS_URL environment variable",
-    });
+    return res.status(500).json({ success: false, message: "Missing REDIS_URL env var" });
   }
 
-  if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ success: false, message: "Method not allowed" });
-  }
+  const redisClient = getRedis();
 
-  const cookieHeader = req.headers.cookie || req.headers.Cookie || "";
-  const match = cookieHeader.match(/session=([^;]+)/);
-  const sessionToken = match ? match[1] : null;
+  const cookieHeader = req.headers.cookie || "";
+  const cookies = Object.fromEntries(
+    cookieHeader
+      .split(";")
+      .map(c => c.trim().split("="))
+      .filter(parts => parts.length === 2)
+  );
+
+  const sessionToken = cookies.session;
 
   if (!sessionToken) {
-    return res.status(200).json({ success: false, message: "No session cookie found" });
+    return res.status(401).json({ success: false, message: "No session cookie found" });
   }
 
   try {
-    const redisClient = getRedis();
     const email = await redisClient.get(getSessionKey(sessionToken));
-
     if (!email) {
-      return res.status(200).json({ success: false, message: "Invalid or expired session" });
+      return res.status(401).json({ success: false, message: "Invalid or expired session" });
     }
 
-    res.status(200).json({ success: true, email });
+    return res.status(200).json({ success: true, email });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Error verifying session",
-      error: process.env.NODE_ENV === "production" ? undefined : err.message,
-    });
+    console.error("Redis error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
