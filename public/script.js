@@ -109,6 +109,3 @@ if (credentialsForm) {
     }
   });
 }
-
-// Optional ESM export to mark this as a module if desired
-export {};
