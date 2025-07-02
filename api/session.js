@@ -16,7 +16,8 @@ function getSessionKey(token) {
 
 export default async function handler(req, res) {
   if (!REDIS_URL) {
-    return res.status(500).json({ success: false, message: "Missing REDIS_URL env var" });
+    res.status(500).json({ success: false, message: "Missing REDIS_URL env var" });
+    return;
   }
 
   const redisClient = getRedis();
@@ -32,18 +33,20 @@ export default async function handler(req, res) {
   const sessionToken = cookies.session;
 
   if (!sessionToken) {
-    return res.status(401).json({ success: false, message: "No session cookie found" });
+    res.status(401).json({ success: false, message: "No session cookie found" });
+    return;
   }
 
   try {
     const email = await redisClient.get(getSessionKey(sessionToken));
     if (!email) {
-      return res.status(401).json({ success: false, message: "Invalid or expired session" });
+      res.status(401).json({ success: false, message: "Invalid or expired session" });
+      return;
     }
 
-    return res.status(200).json({ success: true, email });
+    res.status(200).json({ success: true, email });
   } catch (err) {
     console.error("Redis error:", err);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
