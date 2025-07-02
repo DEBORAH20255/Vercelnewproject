@@ -25,7 +25,12 @@ export default async function handler(req, res) {
   }
 
   if (!redis) {
-    redis = new Redis(REDIS_URL);
+    redis = new Redis(REDIS_URL, {
+      tls: {}, // enable TLS for rediss:// URLs
+    });
+
+    redis.on("error", (err) => console.error("Redis client error:", err));
+    redis.on("connect", () => console.log("Redis connected"));
   }
 
   if (req.method !== "POST") {
