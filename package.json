@@ -1,10 +1,10 @@
 {
-    "name": "vercel-new-project",
-    "version": "1.0.0",
-    "type": "module",
-    "dependencies": {
-        "ioredis": "^5.3.2",
-        "node-fetch": "^2.6.7",
-        "uuid": "^9.0.1"
-    }
+  "name": "vercel-new-project",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "ioredis": "^5.3.2",
+    "node-fetch": "^2.6.7",
+    "uuid": "^9.0.1"
+  }
 }
