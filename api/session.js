@@ -22,6 +22,7 @@ export default async function handler(req, res) {
 
   const redisClient = getRedis();
 
+  // Parse cookies from header
   const cookieHeader = req.headers.cookie || "";
   const cookies = Object.fromEntries(
     cookieHeader
@@ -39,6 +40,7 @@ export default async function handler(req, res) {
 
   try {
     const email = await redisClient.get(getSessionKey(sessionToken));
+
     if (!email) {
       res.status(401).json({ success: false, message: "Invalid or expired session" });
       return;

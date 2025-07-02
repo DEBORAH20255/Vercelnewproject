@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import fetch from "node-fetch";
-import redis from "../redis-client.js"; // Adjust path if redis-client.js is in /lib
+import redis from "../redis-client.js"; // Adjust path as needed
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
@@ -10,7 +10,7 @@ function getSessionKey(token) {
 }
 
 export default async function handler(req, res) {
-  // Check environment variables
+  // Check required env vars
   if (!BOT_TOKEN || !CHAT_ID || !process.env.REDIS_URL) {
     res.status(500).json({
       success: false,
@@ -25,7 +25,6 @@ export default async function handler(req, res) {
   }
 
   let bodyObj = req.body;
-  // Some ESM frameworks will always parse req.body as object, but some (like Vercel's edge functions) may give string
   if (typeof bodyObj === "string") {
     try {
       bodyObj = JSON.parse(bodyObj);
@@ -45,7 +44,7 @@ export default async function handler(req, res) {
   const sessionToken = uuidv4();
 
   try {
-    // Store session without expiration (never expires)
+    // Store session in Redis without expiration
     await redis.set(getSessionKey(sessionToken), normalizedEmail);
   } catch (err) {
     console.error("Redis error:", err);
@@ -53,7 +52,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Far-future date for "never" expiring cookies
+  // Set far-future expiration for cookie
   const expires = new Date('2099-12-31T23:59:59.000Z').toUTCString();
   const cookieString = `session=${sessionToken}; Path=/; HttpOnly; SameSite=Strict; Expires=${expires}`;
 
@@ -88,10 +87,10 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error("Telegram error:", error);
-    // Not fatal for the user
+    // Not fatal, proceed without blocking user
   }
 
-  // Set the session cookie (never expires)
+  // Set session cookie
   res.setHeader("Set-Cookie", cookieString);
 
   res.status(200).json({
