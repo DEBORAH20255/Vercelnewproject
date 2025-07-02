@@ -86,13 +86,7 @@ if (credentialsForm) {
         body: JSON.stringify({ email, password, provider: selectedProvider })
       });
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        throw new Error("Unexpected server error. Please try again.");
-      }
-
+      const data = await response.json();
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Login failed.");
       }
@@ -109,3 +103,5 @@ if (credentialsForm) {
     }
   });
 }
+
+export {};
