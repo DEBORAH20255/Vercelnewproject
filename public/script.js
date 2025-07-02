@@ -11,12 +11,12 @@ const loginErrorDiv = document.getElementById("login-error");
 
 let selectedProvider = null;
 
-// Page display helper
+// Page display helper (FIXED: uses .active class)
 function showPage(page) {
   [providerSelectionPage, signingInPage, credentialsInputPage].forEach(p => {
-    if (p) p.style.display = "none";
+    if (p) p.classList.remove("active");
   });
-  if (page) page.style.display = "block";
+  if (page) page.classList.add("active");
 }
 
 // Initialize on DOM load
