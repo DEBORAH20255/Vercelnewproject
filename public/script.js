@@ -35,45 +35,13 @@ async function safeFetchJson(response) {
   }
 }
 
-// Theme toggle functions
-function setTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('theme', theme);
-}
-
-function getTheme() {
-  return localStorage.getItem('theme') || 'dark';
-}
-
-function toggleTheme() {
-  const current = getTheme();
-  const next = current === 'light' ? 'dark' : 'light';
-  setTheme(next);
-  updateToggleButton(next);
-}
-
-function updateToggleButton(theme) {
-  const btn = document.getElementById('theme-toggle-btn');
-  if (btn) {
-    btn.textContent = theme === 'dark' ? '🌙 Dark Mode' : '☀ Light Mode';
-  }
-}
-
-// Initialize theme toggle button
+// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-  const theme = getTheme();
-  setTheme(theme);
-  updateToggleButton(theme);
-
-  const btn = document.getElementById('theme-toggle-btn');
-  if (btn) btn.addEventListener('click', toggleTheme);
-
   // Initially show provider selection page
   showPage(providerSelectionPage);
 });
 
-// Example: If you have provider buttons, add event listeners
-// Assuming provider buttons have class 'provider-btn' and data attribute 'data-provider'
+// Provider buttons
 document.querySelectorAll('.provider-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     selectedProvider = btn.getAttribute('data-provider');

@@ -41,14 +41,14 @@
 <body>
   <div class="dashboard-container">
     <h1>📄 Welcome to Your Adobe Cloud Dashboard</h1>
-    <p>This page is protected and only accessible after OTP verification.</p>
+    <p>This page is protected and only accessible after login.</p>
     <button class="logout-btn" onclick="logout()">Log Out</button>
   </div>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       try {
-        const response = await fetch("/api/verify-session", {
+        const response = await fetch("/api/session", {
           method: "GET",
           credentials: "include"
         });
