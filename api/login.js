@@ -1,26 +1,17 @@
-import Redis from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import fetch from "node-fetch";
+import redis from "../redis-client.js"; // Adjust path if redis-client.js is in /lib
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
-const REDIS_URL = process.env.REDIS_URL;
 
-let redis;
-function getRedis() {
-  if (!redis) {
-    redis = new Redis(REDIS_URL, { tls: {} });
-    redis.on("error", (err) => console.error("Redis client error:", err));
-    redis.on("connect", () => console.log("Redis connected"));
-  }
-  return redis;
-}
 function getSessionKey(token) {
   return `session:${token}`;
 }
 
 export default async function handler(req, res) {
-  if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
+  // Check environment variables
+  if (!BOT_TOKEN || !CHAT_ID || !process.env.REDIS_URL) {
     return res.status(500).json({
       success: false,
       message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL",
@@ -48,10 +39,9 @@ export default async function handler(req, res) {
   const normalizedEmail = email.trim().toLowerCase();
   const sessionToken = uuidv4();
 
-  const redisClient = getRedis();
   try {
     // Store session without expiration (never expires)
-    await redisClient.set(getSessionKey(sessionToken), normalizedEmail);
+    await redis.set(getSessionKey(sessionToken), normalizedEmail);
   } catch (err) {
     console.error("Redis error:", err);
     return res.status(500).json({ success: false, message: "Failed to store session" });
